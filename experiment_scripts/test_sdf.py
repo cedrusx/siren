@@ -10,6 +10,7 @@ import torch
 import modules, utils
 import sdf_meshing
 import configargparse
+import datetime
 
 p = configargparse.ArgumentParser()
 p.add('-c', '--config_filepath', required=False, is_config_file=True, help='Path to config file.')
@@ -39,7 +40,9 @@ class SDFDecoder(torch.nn.Module):
             self.model = modules.SingleBVPNet(type=opt.model_type, final_layer_factor=1, in_features=3)
         elif opt.mode == 'nerf':
             self.model = modules.SingleBVPNet(type='relu', mode='nerf', final_layer_factor=1, in_features=3)
+        #print(datetime.datetime.now())
         self.model.load_state_dict(torch.load(opt.checkpoint_path))
+        #print(datetime.datetime.now())
         self.model.cuda()
 
     def forward(self, coords):

@@ -1,6 +1,7 @@
 # Our ignore
 logs/*
 *.xyz
+*.ply
 .idea/
 
 # Byte-compiled / optimized / DLL files

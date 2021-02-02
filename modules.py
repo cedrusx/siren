@@ -120,7 +120,7 @@ class SingleBVPNet(MetaModule):
     '''A canonical representation network for a BVP.'''
 
     def __init__(self, out_features=1, type='sine', in_features=2,
-                 mode='mlp', hidden_features=256, num_hidden_layers=3, **kwargs):
+                 mode='mlp', hidden_features=512, num_hidden_layers=3, **kwargs):
         super().__init__()
         self.mode = mode
 
@@ -138,7 +138,7 @@ class SingleBVPNet(MetaModule):
                                                     downsample=kwargs.get('downsample', False))
         self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,
                            hidden_features=hidden_features, outermost_linear=True, nonlinearity=type)
-        print(self)
+        #print(self)
 
     def forward(self, model_input, params=None):
         if params is None:
@@ -163,7 +163,7 @@ class SingleBVPNet(MetaModule):
         '''Returns not only model output, but also intermediate activations.'''
         coords = model_input['coords'].clone().detach().requires_grad_(True)
         activations = self.net.forward_with_activations(coords)
-        return {'model_in': coords, 'model_out': activations.popitem(), 'activations': activations}
+        return {'model_in': coords  , 'model_out': activations.popitem(), 'activations': activations}
 
 
 class PINNet(nn.Module):

@@ -226,7 +226,7 @@ def sdf(model_output, gt):
 
     # Wherever boundary_values is not equal to zero, we interpret it as a boundary constraint.
     sdf_constraint = torch.where(gt_sdf != -1, pred_sdf, torch.zeros_like(pred_sdf))
-    inter_constraint = torch.where(gt_sdf != -1, torch.zeros_like(pred_sdf), torch.exp(-1e2 * torch.abs(pred_sdf)))
+    inter_constraint = torch.where(gt_sdf != -1, torch.zeros_like(pred_sdf), torch.exp(-1e4 * torch.abs(pred_sdf)))
     normal_constraint = torch.where(gt_sdf != -1, 1 - F.cosine_similarity(gradient, gt_normals, dim=-1)[..., None],
                                     torch.zeros_like(gradient[..., :1]))
     grad_constraint = torch.abs(gradient.norm(dim=-1) - 1)

@@ -112,9 +112,9 @@ and creates the mesh saved in a .ply file format. It can be called with:
 python experiment_scripts/test_sdf.py --checkpoint_path=model_current.pth --experiment_name=experiment_1_rec --resolution=512
 ```
 scp zhalab2306@162.105.85.156:~/yanzike/siren/logs/experiment_1/checkpoints/model_current.pth .
-
-python experiment_scripts/test_sdf.py --checkpoint_path=model_current.pth --experiment_name=experiment_1_rec --resolution=512
-
+```
+python experiment_scripts/test_sdf.py --checkpoint_path=logs/single_frame/checkpoints/model_epoch_5700.pth --experiment_name=experiment_1_rec --resolution=512
+```
 This will save the .ply file as "reconstruction.ply" in "experiment_1_rec" (be patient, the marching cube meshing step takes some time ;) )
 In the event the machine you use for the reconstruction does not have enough RAM, running test_sdf script will likely freeze. If this is the case, 
 please use the option --resolution=512 in the command line above (set to 1600 by default) that will reconstruct the mesh at a lower spatial resolution.

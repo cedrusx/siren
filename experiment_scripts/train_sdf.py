@@ -10,6 +10,7 @@ import dataio, meta_modules, utils, training, loss_functions, modules
 
 from torch.utils.data import DataLoader
 import configargparse
+import datetime
 
 p = configargparse.ArgumentParser()
 p.add('-c', '--config_filepath', required=False, is_config_file=True, help='Path to config file.')
@@ -40,21 +41,23 @@ opt = p.parse_args()
 
 sdf_dataset = dataio.PointCloud(opt.point_cloud_path, on_surface_points=opt.batch_size)
 dataloader = DataLoader(sdf_dataset, shuffle=True, batch_size=1, pin_memory=True, num_workers=0)
-
-# Define the model.
-if opt.model_type == 'nerf':
-    model = modules.SingleBVPNet(type='relu', mode='nerf', in_features=3)
-else:
-    model = modules.SingleBVPNet(type=opt.model_type, in_features=3)
-model.cuda()
-
-# Define the loss
-loss_fn = loss_functions.sdf
-summary_fn = utils.write_sdf_summary
-
-root_path = os.path.join(opt.logging_root, opt.experiment_name)
-
-training.train(model=model, train_dataloader=dataloader, epochs=opt.num_epochs, lr=opt.lr,
-               steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
-               model_dir=root_path, loss_fn=loss_fn, summary_fn=summary_fn, double_precision=False,
-               clip_grad=True)
+#
+# # Define the model.
+# if opt.model_type == 'nerf':
+#     model = modules.SingleBVPNet(type='relu', mode='nerf', in_features=3)
+# else:
+#     model = modules.SingleBVPNet(type=opt.model_type, in_features=3)
+# #print(datetime.datetime.now())
+# model.cuda()
+# #print(datetime.datetime.now())
+#
+# # Define the loss
+# loss_fn = loss_functions.sdf
+# summary_fn = utils.write_sdf_summary
+#
+# root_path = os.path.join(opt.logging_root, opt.experiment_name)
+#
+# training.train(model=model, train_dataloader=dataloader, epochs=opt.num_epochs, lr=opt.lr,
+#                steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
+#                model_dir=root_path, loss_fn=loss_fn, summary_fn=summary_fn, double_precision=False,
+#                clip_grad=True)
