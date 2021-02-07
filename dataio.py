@@ -402,14 +402,15 @@ class PointCloud(Dataset):
         # sample efficiency)
         #ICL:      max 3.220121090895888 min -3.049596909104112
         #ICL_noisy max 4.513088101054274 min -4.468375898945726
-        coords -= np.mean(coords, axis=0, keepdims=True)
-        if keep_aspect_ratio:
-            coord_max = np.amax(coords)
-            coord_min = np.amin(coords)
-        else:
-            coord_max = np.amax(coords, axis=0, keepdims=True)
-            coord_min = np.amin(coords, axis=0, keepdims=True)
-
+        # coords -= np.mean(coords, axis=0, keepdims=True)
+        # if keep_aspect_ratio:
+        #     coord_max = np.amax(coords)
+        #     coord_min = np.amin(coords)
+        # else:
+        #     coord_max = np.amax(coords, axis=0, keepdims=True)
+        #     coord_min = np.amin(coords, axis=0, keepdims=True)
+        coord_max = 3.220121090895888
+        coord_min = -3.049596909104112
         print(coord_max, coord_min)
         self.coords = (coords - coord_min) / (coord_max - coord_min)
         self.coords -= 0.5

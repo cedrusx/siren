@@ -120,7 +120,7 @@ class SingleBVPNet(MetaModule):
     '''A canonical representation network for a BVP.'''
 
     def __init__(self, out_features=1, type='sine', in_features=2,
-                 mode='mlp', hidden_features=512, num_hidden_layers=3, **kwargs):
+                 mode='mlp', hidden_features=64, num_hidden_layers=4, **kwargs):
         super().__init__()
         self.mode = mode
 

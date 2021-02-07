@@ -56,8 +56,15 @@ if __name__ == "__main__":
     pose_name = '/home/yan/Dataset/ICL/living' + str(dataset) +'/clean/traj0.gt.freiburg'
     color_raw = o3d.io.read_image(color_name)#"/home/yan/Dataset/Zhou/burghers/color/001001.png")#"/home/yan/Dataset/ICL/living0/clean/rgb/0.png")#/home/yan/Dataset/TUM/rgbd_dataset_freiburg3_long_office_household/rgb/1341847980.722988.png")#/home/yan/Dataset/ICL/living0/clean/rgb/0.png")
     depth_raw = o3d.io.read_image(depth_name)#"/home/yan/Dataset/Zhou/burghers/depth/001001.png")#"/home/yan/Dataset/ICL/living0/clean/depth/0.png")#/home/yan/Dataset/TUM/rgbd_dataset_freiburg3_long_office_household/depth/1341847980.723020.png")#/home/yan/Dataset/ICL/living0/clean/depth/0.png")
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
+    # minus: near, plus: distant
+    depth_plus = np.uint16(depth_raw)+250
+    depth_minus = np.uint16(depth_raw)-500
+    rgbd_image_raw = o3d.geometry.RGBDImage.create_from_color_and_depth(
     color_raw, depth_raw,depth_scale=5000.0, depth_trunc=10.0, convert_rgb_to_intensity=False)
+    rgbd_image_plus = o3d.geometry.RGBDImage.create_from_color_and_depth(
+        color_raw, o3d.geometry.Image(depth_plus), depth_scale=5000.0, depth_trunc=10.0, convert_rgb_to_intensity=False)
+    rgbd_image_minus = o3d.geometry.RGBDImage.create_from_color_and_depth(
+        color_raw, o3d.geometry.Image(depth_minus), depth_scale=5000.0, depth_trunc=10.0, convert_rgb_to_intensity=False)
     trajectory = read_camera_poses(pose_name)
     print("frame count: ", len(trajectory))
     intrinsic = np.asarray([[481.20, 0., 319.50],
@@ -88,22 +95,43 @@ if __name__ == "__main__":
                   [0.000000, 1.000000, 0.000000, 0.000000],
                   [0.000000, 0.000000, 1.000000, -2.250000],
                   [0.000000, 0.000000, 0.000000, 1.000000]])
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-    rgbd_image,
+    pcd_raw = o3d.geometry.PointCloud.create_from_rgbd_image(
+    rgbd_image_raw,
     o3d.camera.PinholeCameraIntrinsic(640,480,481.20,-480.05,319.50,239.50))
-    #o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault))
-    #pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    #print(trajectory[79])
-    pcd.transform(trajectory[79])
-    #print(dataset_transform[dataset])
-    pcd.transform(dataset_transform[dataset])
-    pcd.transform(T)
+    pcd_plus = o3d.geometry.PointCloud.create_from_rgbd_image(
+        rgbd_image_plus,
+        o3d.camera.PinholeCameraIntrinsic(640, 480, 481.20, -480.05, 319.50, 239.50))
+    pcd_minus = o3d.geometry.PointCloud.create_from_rgbd_image(
+        rgbd_image_minus,
+        o3d.camera.PinholeCameraIntrinsic(640, 480, 481.20, -480.05, 319.50, 239.50))
+    pcd_raw.transform(trajectory[79])
+    pcd_raw.transform(dataset_transform[dataset])
+    pcd_raw.transform(T)
+    pcd_plus.transform(trajectory[79])
+    pcd_plus.transform(dataset_transform[dataset])
+    pcd_plus.transform(T)
+    pcd_minus.transform(trajectory[79])
+    pcd_minus.transform(dataset_transform[dataset])
+    pcd_minus.transform(T)
 
-    #pcd.estimate_normals(
-    #search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    #pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    o3d.visualization.draw_geometries([pcd],point_show_normal=True)
-    o3d.io.write_point_cloud("ICL_clean_80.ply", pcd)
+    pcd_raw.estimate_normals(
+    search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    pcd_raw.orient_normals_towards_camera_location()
+    pcd_plus.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    pcd_plus.orient_normals_towards_camera_location()
+    pcd_minus.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    pcd_minus.orient_normals_towards_camera_location()
+    #pcd.orient_normals_towards_camera_location(np.array([trajectory[79][0,3],trajectory[79][1,3],trajectory[79][2,3]], dtype='float64'))
+    #pcd_raw.orient_normals_to_align_with_direction(np.array([trajectory[79][0,3],trajectory[79][1,3],trajectory[79][2,3]], dtype='float64'))
+    o3d.visualization.draw_geometries([pcd_raw,pcd_plus,pcd_minus],point_show_normal=True)
+    o3d.io.write_point_cloud("data/ICL_clean_80_raw.xyzn", pcd_raw)
+    o3d.io.write_point_cloud("data/ICL_clean_80_plus.xyzn", pcd_plus)
+    o3d.io.write_point_cloud("data/ICL_clean_80_minus.xyzn", pcd_minus)
+    os.rename('data/ICL_clean_80_raw.xyzn','data/ICL_clean_80_raw.xyz')
+    os.rename('data/ICL_clean_80_plus.xyzn', 'data/ICL_clean_80_plus.xyz')
+    os.rename('data/ICL_clean_80_minus.xyzn', 'data/ICL_clean_80_minus.xyz')
     
 
     
