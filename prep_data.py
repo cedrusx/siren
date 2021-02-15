@@ -2,8 +2,7 @@ import numpy as np
 import open3d as o3d
 import os
 import pyquaternion
-#import matplotlib.pyplot as plt
-import copy as copy
+
 def read_camera_poses(filename):
     with open(filename) as file:
         poses=[]
@@ -50,10 +49,15 @@ def read_camera_poses(filename):
 
 if __name__ == "__main__":
     frame = 80
-    dataset = 1
-    color_name = '/home/yan/Dataset/ICL/living' + str(dataset) +'/clean/rgb/' + str(frame) +'.png'
-    depth_name = '/home/yan/Dataset/ICL/living' + str(dataset) + '/clean/depth/' + str(frame) + '.png'
-    pose_name = '/home/yan/Dataset/ICL/living' + str(dataset) +'/clean/traj0.gt.freiburg'
+    dataset = 0
+    folder_name = '/home/yan/Dataset/ICL/living'
+    subfolder = 'clean'
+    output_dir = 'data/'
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    color_name = folder_name + str(dataset) + '/' + subfolder + '/rgb/' + str(frame) +'.png'
+    depth_name = folder_name + str(dataset) + '/' + subfolder + '/depth/' + str(frame) + '.png'
+    pose_name = folder_name + str(dataset) + '/' + subfolder + '/traj0.gt.freiburg'
     color_raw = o3d.io.read_image(color_name)#"/home/yan/Dataset/Zhou/burghers/color/001001.png")#"/home/yan/Dataset/ICL/living0/clean/rgb/0.png")#/home/yan/Dataset/TUM/rgbd_dataset_freiburg3_long_office_household/rgb/1341847980.722988.png")#/home/yan/Dataset/ICL/living0/clean/rgb/0.png")
     depth_raw = o3d.io.read_image(depth_name)#"/home/yan/Dataset/Zhou/burghers/depth/001001.png")#"/home/yan/Dataset/ICL/living0/clean/depth/0.png")#/home/yan/Dataset/TUM/rgbd_dataset_freiburg3_long_office_household/depth/1341847980.723020.png")#/home/yan/Dataset/ICL/living0/clean/depth/0.png")
     # minus: near, plus: distant
@@ -104,13 +108,13 @@ if __name__ == "__main__":
     pcd_minus = o3d.geometry.PointCloud.create_from_rgbd_image(
         rgbd_image_minus,
         o3d.camera.PinholeCameraIntrinsic(640, 480, 481.20, -480.05, 319.50, 239.50))
-    pcd_raw.transform(trajectory[79])
+    pcd_raw.transform(trajectory[frame-1])
     pcd_raw.transform(dataset_transform[dataset])
     pcd_raw.transform(T)
-    pcd_plus.transform(trajectory[79])
+    pcd_plus.transform(trajectory[frame-1])
     pcd_plus.transform(dataset_transform[dataset])
     pcd_plus.transform(T)
-    pcd_minus.transform(trajectory[79])
+    pcd_minus.transform(trajectory[frame-1])
     pcd_minus.transform(dataset_transform[dataset])
     pcd_minus.transform(T)
 
@@ -126,12 +130,13 @@ if __name__ == "__main__":
     #pcd.orient_normals_towards_camera_location(np.array([trajectory[79][0,3],trajectory[79][1,3],trajectory[79][2,3]], dtype='float64'))
     #pcd_raw.orient_normals_to_align_with_direction(np.array([trajectory[79][0,3],trajectory[79][1,3],trajectory[79][2,3]], dtype='float64'))
     o3d.visualization.draw_geometries([pcd_raw,pcd_plus,pcd_minus],point_show_normal=True)
-    o3d.io.write_point_cloud("data/ICL_clean_80_raw.xyzn", pcd_raw)
-    o3d.io.write_point_cloud("data/ICL_clean_80_plus.xyzn", pcd_plus)
-    o3d.io.write_point_cloud("data/ICL_clean_80_minus.xyzn", pcd_minus)
-    os.rename('data/ICL_clean_80_raw.xyzn','data/ICL_clean_80_raw.xyz')
-    os.rename('data/ICL_clean_80_plus.xyzn', 'data/ICL_clean_80_plus.xyz')
-    os.rename('data/ICL_clean_80_minus.xyzn', 'data/ICL_clean_80_minus.xyz')
+    output_name = output_dir + 'ICL' + str(dataset) + '_' + subfolder + '_' +str(frame)
+    o3d.io.write_point_cloud(output_name + '_raw.xyzn', pcd_raw)
+    o3d.io.write_point_cloud(output_name + '_plus.xyzn', pcd_plus)
+    o3d.io.write_point_cloud(output_name + '_minus.xyzn', pcd_minus)
+    os.rename(output_name + '_raw.xyzn',output_name + '_raw.xyz')
+    os.rename(output_name + '_plus.xyzn', output_name + '_plus.xyz')
+    os.rename(output_name + '_minus.xyzn', output_name + '_minus.xyz')
     
 
     

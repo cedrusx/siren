@@ -402,15 +402,14 @@ class PointCloud(Dataset):
         # sample efficiency)
         #ICL:      max 3.220121090895888 min -3.049596909104112
         #ICL_noisy max 4.513088101054274 min -4.468375898945726
-        # coords -= np.mean(coords, axis=0, keepdims=True)
-        # if keep_aspect_ratio:
-        #     coord_max = np.amax(coords)
-        #     coord_min = np.amin(coords)
-        # else:
-        #     coord_max = np.amax(coords, axis=0, keepdims=True)
-        #     coord_min = np.amin(coords, axis=0, keepdims=True)
-        coord_max = 3.220121090895888
-        coord_min = -3.049596909104112
+        coords -= np.mean(coords, axis=0, keepdims=True)
+        if keep_aspect_ratio:
+            coord_max = np.amax(coords)
+            coord_min = np.amin(coords)
+        else:
+            coord_max = np.amax(coords, axis=0, keepdims=True)
+            coord_min = np.amin(coords, axis=0, keepdims=True)
+
         print(coord_max, coord_min)
         self.coords = (coords - coord_min) / (coord_max - coord_min)
         self.coords -= 0.5
@@ -440,6 +439,85 @@ class PointCloud(Dataset):
         sdf[self.on_surface_points:, :] = -1  # off-surface = -1
 
         coords = np.concatenate((on_surface_coords, off_surface_coords), axis=0)
+        normals = np.concatenate((on_surface_normals, off_surface_normals), axis=0)
+
+        return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
+                                                              'normals': torch.from_numpy(normals).float()}
+
+class PointCloud_ray(Dataset):
+    def __init__(self, pointcloud_path, on_surface_points, keep_aspect_ratio=True):
+        super().__init__()
+
+        path_raw = pointcloud_path
+        path_plus = pointcloud_path.replace('raw','plus')
+        path_minus = pointcloud_path.replace('raw','minus')
+        print(path_raw, path_plus, path_minus)
+
+        print("Loading point cloud")
+        point_cloud_raw = np.genfromtxt(path_raw)
+        point_cloud_plus = np.genfromtxt(path_plus)
+        point_cloud_minus = np.genfromtxt(path_minus)
+        print("Finished loading point cloud")
+
+        coords_raw = point_cloud_raw[:, :3]
+        coords_plus = point_cloud_plus[:, :3]
+        coords_minus = point_cloud_minus[:, :3]
+        self.normals = point_cloud_raw[:, 3:]
+
+        # Reshape point cloud such that it lies in bounding box of (-1, 1) (distorts geometry, but makes for high
+        # sample efficiency)
+        #ICL:      max 3.220121090895888 min -3.049596909104112
+        #ICL_noisy max 4.513088101054274 min -4.468375898945726
+        # coords -= np.mean(coords, axis=0, keepdims=True)
+        # if keep_aspect_ratio:
+        #     coord_max = np.amax(coords)
+        #     coord_min = np.amin(coords)
+        # else:
+        #     coord_max = np.amax(coords, axis=0, keepdims=True)
+        #     coord_min = np.amin(coords, axis=0, keepdims=True)
+        coord_max = 3.220121090895888
+        coord_min = -3.049596909104112
+        print(coord_max, coord_min)
+        self.coords = (coords_raw - coord_min) / (coord_max - coord_min)
+        self.coords -= 0.5
+        self.coords *= 2.
+        self.coords_plus = (coords_plus - coord_min) / (coord_max - coord_min)
+        self.coords_plus -= 0.5
+        self.coords_plus *= 2.
+        self.coords_minus = (coords_minus - coord_min) / (coord_max - coord_min)
+        self.coords_minus -= 0.5
+        self.coords_minus *= 2.
+
+        self.on_surface_points = on_surface_points
+
+    def __len__(self):
+        return self.coords.shape[0] // self.on_surface_points
+
+    def __getitem__(self, idx):
+        point_cloud_size = self.coords.shape[0]
+
+        off_surface_samples = self.on_surface_points*2  # **2
+        total_samples = self.on_surface_points + off_surface_samples
+
+        # Random coords
+        rand_idcs = np.random.choice(point_cloud_size, size=self.on_surface_points)
+
+        on_surface_coords = self.coords[rand_idcs, :]
+        on_surface_normals = self.normals[rand_idcs, :]
+
+        before_surface_coords = self.coords_minus[rand_idcs, :]
+
+        behind_surface_coords = self.coords_plus[rand_idcs, :]
+
+        #off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
+        off_surface_normals = np.ones((off_surface_samples, 3)) * -1
+
+        sdf = np.zeros((total_samples, 1))  # on-surface = 0
+        sdf[self.on_surface_points: self.on_surface_points + off_surface_samples//2] = 0.025  # near
+        sdf[self.on_surface_points + off_surface_samples//2:, :] = -0.0125 #far
+        #print(sdf[307200],sdf[614400],sdf[921599],sdf[307199],sdf[614399],sdf[921598])
+
+        coords = np.concatenate((on_surface_coords, before_surface_coords, behind_surface_coords), axis=0)
         normals = np.concatenate((on_surface_normals, off_surface_normals), axis=0)
 
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
