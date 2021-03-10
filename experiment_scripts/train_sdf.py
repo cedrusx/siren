@@ -8,6 +8,8 @@ sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) )
 
 import dataio, meta_modules, utils, training, loss_functions, modules
 
+import yaml
+import numpy as np
 from torch.utils.data import DataLoader
 import configargparse
 import datetime
@@ -35,10 +37,28 @@ p.add_argument('--model_type', type=str, default='sine',
 p.add_argument('--point_cloud_path', type=str, default='/home/sitzmann/data/point_cloud.xyz',
                help='Options are "sine" (all sine activations) and "mixed" (first layer sine, other layers tanh)')
 
+p.add_argument('--camera_pose_path', type=str, default='/home/sitzmann/data/trajctory.txt',
+               help='camera pose in tum format')
+p.add_argument('--camera_number', type=int, default=10,
+               help='camera number to load')
+p.add_argument('--camera_depth_path', type=str, default='/home/sitzmann/data/depth',
+               help='camera depth image in')
+p.add_argument('--camera_intrinsic', type=str, default='/home/sitzmann/data/intrinsic.txt',
+               help='camera pose in tum format')
+
 p.add_argument('--checkpoint_path', default=None, help='Checkpoint to trained model.')
 opt = p.parse_args()
 
-sdf_dataset = dataio.PointCloud(opt.point_cloud_path, on_surface_points=opt.batch_size)
+# load camera intrinsic
+with open(opt.camera_intrinsic) as f:
+    intrinsic = np.array(yaml.load(f.read(), yaml.SafeLoader)['K']).reshape(3,3)
+
+
+# load camera pose
+pose = np.genfromtxt(opt.camera_pose_path)[opt.camera_number-1,1:]
+
+sdf_dataset = dataio.PointCloud(opt.point_cloud_path, on_surface_points=opt.batch_size, intrinsic=intrinsic, pose=pose, 
+                                camera_depth_path=os.path.join(opt.camera_depth_path))
 dataloader = DataLoader(sdf_dataset, shuffle=True, batch_size=1, pin_memory=True, num_workers=0)
 
 # Define the model.

@@ -15,6 +15,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import Resize, Compose, ToTensor, Normalize
+from scipy.spatial.transform import Rotation as R
+import cv2
 
 
 def get_mgrid(sidelen, dim=2):
@@ -388,7 +390,7 @@ class WaveSource(Dataset):
 
 
 class PointCloud(Dataset):
-    def __init__(self, pointcloud_path, on_surface_points, keep_aspect_ratio=True):
+    def __init__(self, pointcloud_path, on_surface_points, intrinsic, pose, camera_depth_path, fixed_range=True, keep_aspect_ratio=True):
         super().__init__()
 
         print("Loading point cloud")
@@ -402,6 +404,7 @@ class PointCloud(Dataset):
         # sample efficiency)
         #ICL:      max 3.220121090895888 min -3.049596909104112
         #ICL_noisy max 4.513088101054274 min -4.468375898945726
+        self.coord_mean = np.mean(coords, axis=0, keepdims=True)
         coords -= np.mean(coords, axis=0, keepdims=True)
         if keep_aspect_ratio:
             coord_max = np.amax(coords)
@@ -417,6 +420,17 @@ class PointCloud(Dataset):
 
         self.on_surface_points = on_surface_points
 
+        self.fixed_range = fixed_range
+        # new parameters for camera
+        self.intrinsic = intrinsic
+        self.pose = pose
+        self.rot = R.from_quat(pose[3:7]).as_matrix()
+        self.trans = pose[0:3].transpose()
+        self.depth = cv2.imread(camera_depth_path, cv2.IMREAD_UNCHANGED).transpose()/5000
+        self.coord_max = coord_max
+        self.coord_min = coord_min
+        self.picture_size = self.depth.shape
+        
     def __len__(self):
         return self.coords.shape[0] // self.on_surface_points
 
@@ -432,17 +446,60 @@ class PointCloud(Dataset):
         on_surface_coords = self.coords[rand_idcs, :]
         on_surface_normals = self.normals[rand_idcs, :]
 
-        off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
+        if self.fixed_range:
+            off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
+        else:
+            point_max = on_surface_coords.max(axis=0)*1.1
+            point_min = on_surface_coords.min(axis=0)*0.9
+             
+        
         off_surface_normals = np.ones((off_surface_samples, 3)) * -1
+        
+        # false means not in sight while true means in sight 
+        judge_result = self.projection_result( (off_surface_coords/2+0.5)*(self.coord_max - self.coord_min) + self.coord_min + self.coord_mean.repeat(off_surface_samples, axis=0))
 
         sdf = np.zeros((total_samples, 1))  # on-surface = 0
-        sdf[self.on_surface_points:, :] = -1  # off-surface = -1
+        sdf[self.on_surface_points:, :] = -1  # off-surface and not in sight = -1
+        sdf[self.on_surface_points:, :][judge_result] = 1  # off-surface and in sight = 1
 
         coords = np.concatenate((on_surface_coords, off_surface_coords), axis=0)
         normals = np.concatenate((on_surface_normals, off_surface_normals), axis=0)
 
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
                                                               'normals': torch.from_numpy(normals).float()}
+
+    def projection_result(self, points):
+        number = points.shape[0]
+        # [number, 3]
+        point_in_camera_cordinate = (np.dot(self.rot, points.transpose()) + np.tile(self.trans, (number, 1)).transpose()).transpose()
+        # [number, 2]
+        proj_res = (np.dot(self.intrinsic, (point_in_camera_cordinate / np.tile(point_in_camera_cordinate[:,2], (3, 1)).transpose() ).transpose() )[0:2]).transpose()
+
+        # if point is in front of the camera, and projection in side of width and height return true;
+        judge_res = (np.zeros(number) == 0)
+        judge_loc = ( (proj_res < np.tile(self.picture_size, (number, 1)) ) & (proj_res >= np.zeros((number,2)) ) ).all(axis=1)
+        judge_res[~judge_loc] = False
+
+        # depth < depth image and depth > 0 and depth image < 10(depth trunc)
+        judge_proj = (point_in_camera_cordinate[judge_res, 2] < self.depth[proj_res[judge_res, 0].astype(int), proj_res[judge_res, 1].astype(int)]) \
+                   & (point_in_camera_cordinate[judge_res, 2] > np.zeros_like(point_in_camera_cordinate[judge_res, 2])) \
+                   & (self.depth[proj_res[judge_res, 0].astype(int), proj_res[judge_res, 1].astype(int)] < 10)
+        
+        judge_res[judge_loc][~judge_proj] = False
+        return judge_res
+
+    def calculate_range(self):
+        row = self.picture_size[0]
+        col = self.picture_size[0]
+        row_range = np.arange(row)
+        row_range = np.tile(row_range, (col,1)).reshape(1,row*col)
+        col_range = np.arange(col)
+        col_range = np.tile(col_range, (row,1)).transpose().reshape(1,row*col)
+
+        coord_2d = np.concatenate((row_range, col_range, np.ones((1,col*row))), axis=0)
+
+        np.dot(self.intrinsic.inv(), coord_2d) - np.tile(self.trans, (row*col, 1)).transpose()
+
 
 class PointCloud_ray(Dataset):
     def __init__(self, pointcloud_path, on_surface_points, keep_aspect_ratio=True):
