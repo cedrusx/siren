@@ -498,7 +498,8 @@ class PointCloud(Dataset):
 
         coord_2d = np.concatenate((row_range, col_range, np.ones((1,col*row))), axis=0)
 
-        np.dot(self.intrinsic.inv(), coord_2d) - np.tile(self.trans, (row*col, 1)).transpose()
+        coord_3d = np.dot(self.rot.inv(), (np.dot(self.intrinsic.inv(), coord_2d) - np.tile(self.trans, (row*col, 1)).transpose()))
+        
 
 
 class PointCloud_ray(Dataset):
