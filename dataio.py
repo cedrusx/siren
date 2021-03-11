@@ -18,6 +18,7 @@ from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 from scipy.spatial.transform import Rotation as R
 import cv2
 
+from mayavi import mlab
 
 def get_mgrid(sidelen, dim=2):
     '''Generates a flattened grid of (x,y,...) coordinates in a range of -1 to 1.'''
@@ -422,10 +423,24 @@ class PointCloud(Dataset):
 
         self.fixed_range = fixed_range
         # new parameters for camera
+        self.T = np.array([[1.000000, 0.000000, 0.000000, 0.000000],
+                            [0.000000, 1.000000, 0.000000, 0.000000],
+                            [0.000000, 0.000000, 1.000000, -2.250000],
+                            [0.000000, 0.000000, 0.000000, 1.000000]])
+
+        self.T2 = np.array([[0.999822, 0.0034419, 0.0185526, -0.786316],
+                            [-0.00350915, 0.999987, 0.00359374, 1.28433],
+                            [0.01854, 0.00365819, -0.999821, 1.45583],
+                            [0, 0, 0, 1]])
         self.intrinsic = intrinsic
-        self.pose = pose
-        self.rot = R.from_quat(pose[3:7]).as_matrix()
-        self.trans = pose[0:3].transpose()
+
+        self.pose_mat = np.eye(4)
+        self.pose_mat[0:3, 0:3] = R.from_quat(pose[3:7]).as_matrix()
+        self.pose_mat[0:3, 3] = pose[0:3]
+        self.pose_mat = np.linalg.inv(np.dot(np.dot(self.T, self.T2), self.pose_mat))
+
+        self.rot = self.pose_mat[0:3,0:3]
+        self.trans = self.pose_mat[0:3,3]
         self.depth = cv2.imread(camera_depth_path, cv2.IMREAD_UNCHANGED).transpose()/5000
         self.coord_max = coord_max
         self.coord_min = coord_min
@@ -458,6 +473,13 @@ class PointCloud(Dataset):
 
         coords = np.concatenate((on_surface_coords, off_surface_coords), axis=0)
         normals = np.concatenate((on_surface_normals, off_surface_normals), axis=0)
+
+        # visuliaze
+
+        mlab.points3d(on_surface_coords[:,0], on_surface_coords[:,1], on_surface_coords[:,2], colormap='spectral', color=(0,1,0))
+        mlab.points3d(off_surface_coords[judge_result,0], off_surface_coords[judge_result,1], off_surface_coords[judge_result,2], colormap='spectral', color=(0,0,1))
+        # mlab.points3d(off_surface_coords[~judge_result,0], off_surface_coords[~judge_result,1], off_surface_coords[~judge_result,2], colormap='spectral', color=(1,0,0))
+        mlab.show()
 
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
                                                               'normals': torch.from_numpy(normals).float()}
