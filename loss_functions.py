@@ -234,7 +234,7 @@ def sdf(model_output, gt):
     # -----------------
     return {'sdf': torch.abs(sdf_constraint).mean() * 3e3,  # 1e4      # 3e3
             'inter': inter_constraint.mean() * 1e2,  # 1e2                   # 1e3
-            'free': free_constraint.mean() * 1e2,
+            'free': free_constraint.mean() * 0.5e2,
             'normal_constraint': normal_constraint.mean() * 1e2,  # 1e2
             'grad_constraint': grad_constraint.mean() * 5e1}  # 1e1      # 5e1
 
