@@ -476,10 +476,10 @@ class PointCloud(Dataset):
 
         # visuliaze
 
-        mlab.points3d(on_surface_coords[:,0], on_surface_coords[:,1], on_surface_coords[:,2], colormap='spectral', color=(0,1,0))
-        mlab.points3d(off_surface_coords[judge_result,0], off_surface_coords[judge_result,1], off_surface_coords[judge_result,2], colormap='spectral', color=(0,0,1))
-        # mlab.points3d(off_surface_coords[~judge_result,0], off_surface_coords[~judge_result,1], off_surface_coords[~judge_result,2], colormap='spectral', color=(1,0,0))
-        mlab.show()
+        # mlab.points3d(on_surface_coords[:,0], on_surface_coords[:,1], on_surface_coords[:,2], colormap='spectral', color=(0,1,0))
+        # mlab.points3d(off_surface_coords[judge_result,0], off_surface_coords[judge_result,1], off_surface_coords[judge_result,2], colormap='spectral', color=(0,0,1))
+        # # mlab.points3d(off_surface_coords[~judge_result,0], off_surface_coords[~judge_result,1], off_surface_coords[~judge_result,2], colormap='spectral', color=(1,0,0))
+        # mlab.show()
 
         return {'coords': torch.from_numpy(coords).float()}, {'sdf': torch.from_numpy(sdf).float(),
                                                               'normals': torch.from_numpy(normals).float()}
