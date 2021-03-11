@@ -1,6 +1,6 @@
 name: siren
 channels:
-  #- pytorch
+  - pytorch
   - conda-forge
   - defaults
 dependencies:

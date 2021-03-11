@@ -178,7 +178,7 @@ class InverseHelmholtz(Dataset):
         coords[-self.N_src_samples * N_src_coords:, :] = samp_source_coords
         coords[:N_rec_coords, :] = self.rec_coords
 
-        # sample each of the source gaussians separately 
+        # sample each of the source gaussians separately
         source_boundary_values = torch.zeros(coords.shape[0], 2 * N_src_coords)
         for i in range(N_src_coords):
             source_boundary_values[:, 2 * i:2 * i + 2] = self.source * \
@@ -188,7 +188,7 @@ class InverseHelmholtz(Dataset):
         # truncate the source gaussians
         source_boundary_values[source_boundary_values < 1e-5] = 0.
 
-        # add the receiver dirichlet conditions 
+        # add the receiver dirichlet conditions
         rec_boundary_values = torch.zeros(coords.shape[0], self.rec.shape[1])
         rec_boundary_values[:N_rec_coords:, :] = self.rec
 
@@ -342,7 +342,7 @@ class WaveSource(Dataset):
         source_coords_y = r * torch.sin(phi) + self.source_coords[0, 2]
         source_coords = torch.cat((source_coords_x, source_coords_y), dim=1)
 
-        # uniformly sample domain and include coordinates where source is non-zero 
+        # uniformly sample domain and include coordinates where source is non-zero
         coords = torch.zeros(self.sidelength ** 2, 2).uniform_(-1, 1)
 
         if self.pretrain:
@@ -353,7 +353,7 @@ class WaveSource(Dataset):
             coords[-self.N_src_samples:, 1:] = source_coords
         else:
             # slowly grow time values from start time
-            # this currently assumes start_time = 0 and max time value is 0.75. 
+            # this currently assumes start_time = 0 and max time value is 0.75.
             time = torch.zeros(self.sidelength ** 2, 1).uniform_(0, 0.4 * (self.counter / self.full_count))
             coords = torch.cat((time, coords), dim=1)
 
@@ -430,7 +430,7 @@ class PointCloud(Dataset):
         self.coord_max = coord_max
         self.coord_min = coord_min
         self.picture_size = self.depth.shape
-        
+
     def __len__(self):
         return self.coords.shape[0] // self.on_surface_points
 
@@ -446,16 +446,10 @@ class PointCloud(Dataset):
         on_surface_coords = self.coords[rand_idcs, :]
         on_surface_normals = self.normals[rand_idcs, :]
 
-        if self.fixed_range:
-            off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
-        else:
-            point_max = on_surface_coords.max(axis=0)*1.1
-            point_min = on_surface_coords.min(axis=0)*0.9
-             
-        
+        off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
         off_surface_normals = np.ones((off_surface_samples, 3)) * -1
-        
-        # false means not in sight while true means in sight 
+
+        # false means not in sight while true means in sight
         judge_result = self.projection_result( (off_surface_coords/2+0.5)*(self.coord_max - self.coord_min) + self.coord_min + self.coord_mean.repeat(off_surface_samples, axis=0))
 
         sdf = np.zeros((total_samples, 1))  # on-surface = 0
@@ -484,22 +478,35 @@ class PointCloud(Dataset):
         judge_proj = (point_in_camera_cordinate[judge_res, 2] < self.depth[proj_res[judge_res, 0].astype(int), proj_res[judge_res, 1].astype(int)]) \
                    & (point_in_camera_cordinate[judge_res, 2] > np.zeros_like(point_in_camera_cordinate[judge_res, 2])) \
                    & (self.depth[proj_res[judge_res, 0].astype(int), proj_res[judge_res, 1].astype(int)] < 10)
-        
+
         judge_res[judge_loc][~judge_proj] = False
         return judge_res
 
-    def calculate_range(self):
+    def calculate_cam_range(self, keep_aspect_ratio):
         row = self.picture_size[0]
         col = self.picture_size[0]
         row_range = np.arange(row)
-        row_range = np.tile(row_range, (col,1)).reshape(1,row*col)
+        row_range = np.tile(row_range, (col,1)).transpose().reshape(1,row*col)
         col_range = np.arange(col)
-        col_range = np.tile(col_range, (row,1)).transpose().reshape(1,row*col)
+        col_range = np.tile(col_range, (row,1)).reshape(1,row*col)
 
+        # 3*number
         coord_2d = np.concatenate((row_range, col_range, np.ones((1,col*row))), axis=0)
 
         coord_3d = np.dot(self.rot.inv(), (np.dot(self.intrinsic.inv(), coord_2d) - np.tile(self.trans, (row*col, 1)).transpose()))
-        
+
+        coord_3d_actual = self.depth.reshape(1, row*col).repeat(3, axis=0)*coord_3d
+
+        if keep_aspect_ratio:
+            coord_max = np.amax(coord_3d_actual)
+            coord_min = np.amin(coord_3d_actual)
+        else:
+            coord_max = np.amax(coord_3d_actual, axis=0, keepdims=True)
+            coord_min = np.amin(coord_3d_actual, axis=0, keepdims=True)
+        return coord_max, coord_min
+
+
+
 
 
 class PointCloud_ray(Dataset):
